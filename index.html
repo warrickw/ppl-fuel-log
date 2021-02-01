@@ -208,6 +208,11 @@
                 }
             }
         }
+
+        var inputs = document.getElementsByTagName("input");
+
+        for (var i = 0; i < inputs.length; i++)
+            localStorage.setItem("input_" + i, input.value);
     }
 
     for (let i = 0; i < rowCount; i++)
@@ -232,6 +237,11 @@
 
         document.getElementById("fuel-log").appendChild(row);
     }
+
+    var inputs = document.getElementsByTagName("input");
+
+    for (var i = 0; i < inputs.length; i++)
+        input.value = localStorage.getItem("input_" + i);
 
     setInterval(refresh, 5000);
 </script>

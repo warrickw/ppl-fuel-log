@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            display: block;
+            max-width: 700px;
+            padding: 20px;
+        }
+
+        table,
+        th,
+        td {
+            border-collapse: collapse;
+            border: solid 1px black;
+        }
+
+        th {
+            padding: 2px 10px;
+        }
+
+        input {
+            text-align: center;
+            font-size: 16px;
+            background: none;
+            outline: none;
+            border: none;
+        }
+
+        input[type='number'] {
+            -moz-appearance: textfield;
+        }
+
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+        }
+
+        .tank-header {
+            width: 100%;
+            text-align: center;
+        }
+
+        .tank-header td {
+            width: 50%;
+        }
+
+        .summary-table {
+            width: 50%;
+        }
+
+        .summary-table td {
+            width: 50%;
+        }
+    </style>
+</head>
+
+<div class="container">
+    <h1>Fuel log</h1>
+
+    <table class="tank-header">
+        <td>Left</td>
+        <td>Right</td>
+    </table>
+
+
+    <table>
+        <thead>
+            <tr>
+                <th>Change time</th>
+                <th>Remaining time</th>
+                <th>Remaining time</th>
+                <th>Change time</th>
+            </tr>
+        </thead>
+        <tbody id="fuel-log">
+
+        </tbody>
+    </table>
+
+    <table class="summary-table">
+        <tbody>
+            <tr>
+                <td><strong>Reserve time</strong></td>
+                <td id="reserve-time"></td>
+            </tr>
+            <tr>
+                <td><strong>Dry time</strong></td>
+                <td id="dry-time"></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    var rowCount = 5;
+
+    function getTime(id) {
+        let value = document.getElementById(id).value;
+
+        if (value.length == 4)
+            return parseInt(value.substring(0, 2)) * 60 + parseInt(value.substring(2, 4));
+        else
+            return null;
+    }
+
+    function currentTime() {
+        return new Date().getHours() * 60 + new Date().getMinutes();
+    }
+
+    function timeBetween(startTime, time) {
+        if (time == null)
+            return null;
+
+        return time - startTime;
+    }
+
+    function setTime(id, value) {
+        if (value == null)
+            document.getElementById(id).innerText = "";
+
+        document.getElementById(id).innerText = Math.floor(value / 60).toString().padStart(2, "0") + (value % 60).toString().padStart(2, "0");
+    }
+
+    function setNumber(id, value) {
+        document.getElementById(id).value = value;
+    }
+
+    function getNumber(id) {
+        return parseInt(document.getElementById(id).value);
+    }
+
+    function validateNumber(event) {
+        if (parseInt(event.key) == null) {
+            return false;
+        }
+
+        event.target.value = event.target.value.replace(/[^\d]/g, '');
+
+        refresh();
+    }
+
+    function refresh() {
+        let startTime;
+
+        let changeTimeLeft;
+        let changeTimeRight;
+        let remainingLeft;
+        let remainingRight;
+        let guessLastLeft = false;
+        let guessLastRight = false;
+
+        for (let i = 0; i < rowCount; i++) {
+            if (i != 0) {
+                if (guessLastLeft || !changeTimeLeft)
+                    setNumber("remaining-l-" + i, null);
+                else if (!getTime("time-l-" + i)) {
+                    guessLastLeft = true;
+                    setNumber("remaining-l-" + i, remainingLeft - timeBetween(changeTimeLeft, currentTime()));
+                }
+                else
+                    setNumber("remaining-l-" + i, remainingLeft - timeBetween(changeTimeLeft, getTime("time-l-" + i)));
+
+                if (guessLastRight || !changeTimeRight)
+                    setNumber("remaining-r-" + i, null);
+                else if (!getTime("time-r-" + i)) {
+                    guessLastRight = true;
+                    setNumber("remaining-r-" + i, remainingRight - timeBetween(changeTimeRight, currentTime()));
+                }
+                else
+                    setNumber("remaining-r-" + i, remainingRight - timeBetween(changeTimeRight, getTime("time-r-" + i)));
+            }
+
+            changeTimeLeft = getTime("time-l-" + i);
+            remainingLeft = getNumber("remaining-l-" + i);
+            changeTimeRight = getTime("time-r-" + i);
+            remainingRight = getNumber("remaining-r-" + i);
+
+            if (i == 0) {
+                if (changeTimeRight == null)
+                    startTime = changeTimeLeft;
+                else if (changeTimeLeft == null)
+                    startTime = changeTimeRight;
+                else if (changeTimeLeft < changeTimeRight)
+                    startTime = changeTimeLeft;
+                else
+                    startTime = changeTimeRight;
+
+
+                let dryTime = startTime + (remainingLeft || 0) + (remainingRight || 0);
+                setTime("dry-time", dryTime);
+                setTime("reserve-time", dryTime - 45);
+
+                if (!startTime) {
+                    document.getElementById("dry-time").innerText = "";
+                    document.getElementById("reserve-time").innerText = "";
+                }
+            }
+        }
+    }
+
+    for (let i = 0; i < rowCount; i++)
+        createRow(i);
+
+    function createRow(i, remainingEditable) {
+        let row = document.createElement("tr");
+        row.innerHTML = `
+            <td>
+                <input id="time-l-` + i + `" type="text" onkeyup="validateNumber(event)" pattern="[0-9]*" />
+            </td>
+            <td>
+                <input ` + (i == 0 ? "" : "disabled") + ` id="remaining-l-` + i + `" type="number" onkeyup="validateNumber(event)" pattern="[0-9]*" />
+            </td>
+            <td>
+                <input ` + (i == 0 ? "" : "disabled") + ` id="remaining-r-` + i + `" type="number" onkeyup="validateNumber(event)" pattern="[0-9]*" />
+            </td>
+            <td>
+                <input id="time-r-` + i + `" type="text" onkeyup="validateNumber(event)" pattern="[0-9]*" />
+            </td>
+        `;
+
+        document.getElementById("fuel-log").appendChild(row);
+    }
+
+    setInterval(refresh, 5000);
+</script>
+
+</html>
